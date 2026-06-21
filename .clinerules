@@ -1,0 +1,591 @@
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+
+---
+
+# Application Building Context
+
+Read the following files in order before implementing or making any architectural decision:
+
+1. `context/project-overview.md` — product definition, goals, features, and scope
+2. `context/architecture-context.md` — system structure, boundaries, storage model, and invariants
+3. `context/ui-context.md` — theme, colors, typography, canvas design, and component conventions
+4. `context/code-standards.md` — implementation rules and conventions
+5. `context/ai-workflow-rules.md` — development workflow, scoping rules, and delivery approach
+6. `context/progress-tracker.md` — current phase, completed work, open questions, and next steps
+
+Update `context/progress-tracker.md` after each meaningful implementation change.
+
+If implementation changes the architecture, scope, or standards documented in the context files, update the relevant file before continuing.
+
+---
+
+# Project Overview
+
+## Overview
+
+Ghost AI is a real-time collaborative system design workspace. Users describe a system in plain English, an AI agent maps that system onto a shared canvas, collaborators refine the architecture, and the app generates a technical specification from the resulting graph.
+
+## Goals
+
+1. Let authenticated users create and manage architecture projects.
+2. Provide a collaborative real-time canvas for system design.
+3. Let users import prebuilt starter system designs into the canvas.
+4. Let AI generate an initial architecture from a natural language prompt.
+5. Let collaborators refine the generated architecture.
+6. Convert the final graph into a persistent Markdown technical spec.
+
+## Core User Flow
+
+1. User signs in.
+2. User creates or selects a project.
+3. User enters the project workspace.
+4. User optionally imports a starter system design template into the canvas.
+5. User prompts the AI to generate or extend the system design.
+6. AI generates nodes and edges in the shared canvas.
+7. Collaborators edit and refine the design.
+8. User triggers spec generation.
+9. App persists the generated Markdown spec.
+10. User reviews or downloads the spec.
+
+## Features
+
+### Authentication and Projects
+
+- User sign-in and route protection.
+- Project creation, ownership, and collaborator access.
+- Project list and workspace navigation.
+
+### Collaborative Canvas
+
+- Shared real-time canvas using Liveblocks and React Flow.
+- Live cursors, presence indicators, and node/edge editing.
+- Canvas snapshots persisted to the filesystem.
+
+### Starter System Designs
+
+- A curated library of prebuilt system design templates.
+- Users can import a starter template into the canvas at any point during editing.
+- Templates are static canvas snapshots loaded directly into the active room.
+- Covers common patterns: monolith, microservices, event-driven, serverless, and more.
+
+### AI Architecture Generation
+
+- AI generates a system design from a user-supplied prompt.
+- Output is structured as canvas nodes and edges written into the shared room.
+- Generation runs as a durable background task.
+
+### Spec Generation
+
+- The current canvas graph is converted into a Markdown technical specification.
+- Specs are persisted as files and linked to the project in the database.
+- Users can view and download generated specs.
+
+## Scope
+
+### In Scope
+
+- Authentication and route protection
+- Project creation and ownership
+- Collaborator access by project
+- Starter system design template library and import
+- Real-time shared canvas with nodes, edges, and presence
+- AI-powered architecture generation from prompts
+- AI-powered Markdown spec generation from the canvas graph
+- Persistent storage for project metadata and generated artifacts
+- Spec download
+
+### Out Of Scope
+
+- Billing and subscription systems
+- Enterprise permission tiers beyond owner and collaborator
+- Versioned spec history and review workflows
+- Production object storage migration
+- Mobile-native applications
+
+## Success Criteria
+
+1. A signed-in user can create and open a project.
+2. Multiple users can collaborate in the same canvas simultaneously.
+3. A user can import a prebuilt starter design into the canvas.
+4. AI can generate an architecture into the shared room from a prompt.
+5. The graph can be converted into a persisted Markdown spec.
+6. Project metadata and generated artifacts are stored in the correct layers.
+
+---
+
+# Architecture Context
+
+## Stack
+
+| Layer            | Technology              | Role                                                           |
+| ---------------- | ----------------------- | -------------------------------------------------------------- |
+| Framework        | Next.js 16 + TypeScript | Full-stack app with server/client boundaries                   |
+| UI               | Tailwind + shadcn/ui    | Component composition and styling                              |
+| Auth             | Clerk                   | User identity and route protection                             |
+| Database         | Prisma + PostgreSQL     | Relational metadata: projects, collaborators, specs, task runs |
+| Canvas           | Liveblocks + React Flow | Real-time collaborative canvas, presence, and cursors          |
+| Background tasks | Trigger.dev             | Durable AI generation workflows                                |
+| Artifact storage | Vercel Blob             | Canvas snapshots and generated Markdown specs                  |
+
+## System Boundaries
+
+- `app/api` — Authenticated request handlers: input validation, ownership checks, task triggering, and persistence.
+- `trigger` — Long-running background jobs: AI design generation and spec generation.
+- `lib` — Shared infrastructure: Prisma client, access control helpers, and utilities.
+- `components` — UI composition: canvas surfaces, sidebars, dialogs, and interactive elements.
+- `prisma` — Database schema and generated client output.
+- `data` — Legacy local directory. Not used for new artifacts.
+
+## Storage Model
+
+- **Database**: metadata, ownership, relationships, and task run records.
+- **Vercel Blob**: generated artifacts — canvas snapshots at `canvas/{projectId}.json` and specs at `specs/{projectId}/{specId}.md`.
+- Project records, spec records, and task run records belong in PostgreSQL.
+- Canvas content and Markdown output are stored in and retrieved from Vercel Blob.
+- The blob URL is stored in the database (`canvasJsonPath`, `filePath`) as the reference to the artifact.
+
+## Auth and Collaboration Model
+
+- Every project has a single owner (Clerk user ID).
+- Projects can include additional collaborators.
+- Only authenticated users can access protected routes.
+- Only the owner or a collaborator can mutate project resources.
+- Liveblocks room tokens are issued only after verifying project membership.
+
+## Starter System Designs
+
+- Prebuilt templates are static canvas snapshots stored in the codebase.
+- Templates are loaded into the active Liveblocks room when a user imports one.
+- Import can occur on canvas creation or from within the editor at any time.
+- Template data follows the same node/edge schema as user-created canvas content.
+- Templates do not require a separate database record; they are resolved by template ID at import time.
+
+## AI Generation Model
+
+### Design Generation
+
+- Input: user prompt, project context, and current canvas state.
+- Execution: durable background task via Trigger.dev.
+- Output: structured node and edge updates written into the shared Liveblocks room.
+
+### Spec Generation
+
+- Input: current canvas graph and project context.
+- Execution: durable background task via Trigger.dev.
+- Output: Markdown technical spec saved to the filesystem and linked to the project in the database.
+
+## Invariants
+
+1. Request handlers do not run long-lived AI work — that belongs in background tasks.
+2. Metadata and large generated artifacts are stored in separate layers.
+3. Auth and ownership are enforced at every mutation boundary.
+4. Client components are used only where browser interactivity or real-time state requires them.
+5. The canvas schema must remain consistent between user-created content and imported templates.
+
+---
+
+# UI Context
+
+## Theme
+
+Dark only. No light mode. The visual language is a dark technical workspace — near-black backgrounds, layered surfaces, and vivid accent colors for interactive elements.
+
+All colors are defined as CSS custom properties in `globals.css` and mapped to Tailwind tokens via `@theme inline`. Components must use these tokens — no hardcoded hex values or raw Tailwind color classes like `zinc-*`.
+
+| Role             | CSS Variable           | Hex / Value               |
+| ---------------- | ---------------------- | ------------------------- |
+| Page background  | `--bg-base`            | `#080809`                 |
+| Surface          | `--bg-surface`         | `#111114`                 |
+| Elevated surface | `--bg-elevated`        | `#18181c`                 |
+| Subtle surface   | `--bg-subtle`          | `#1e1e23`                 |
+| Default border   | `--border-default`     | `#2a2a30`                 |
+| Subtle border    | `--border-subtle`      | `#3a3a42`                 |
+| Primary text     | `--text-primary`       | `#f0f0f4`                 |
+| Secondary text   | `--text-secondary`     | `#c0c0cc`                 |
+| Muted text       | `--text-muted`         | `#808090`                 |
+| Faint text       | `--text-faint`         | `#505060`                 |
+| Brand accent     | `--accent-primary`     | `#00c8d4` (cyan)          |
+| Brand dim        | `--accent-primary-dim` | `rgba(0, 200, 212, 0.12)` |
+| AI accent        | `--accent-ai`          | `#6457f9` (indigo-purple) |
+| AI text          | `--accent-ai-text`     | `#8b82ff`                 |
+| Error            | `--state-error`        | `#ff4d4f`                 |
+| Success          | `--state-success`      | `#34d399`                 |
+| Warning          | `--state-warning`      | `#fbbf24`                 |
+
+Tailwind utility names map to these variables. Use `bg-base`, `bg-surface`, `text-copy-primary`, `text-copy-muted`, `border-surface-border`, `text-brand`, `bg-accent-dim`, etc.
+
+## Typography
+
+| Role      | Font       | CSS Variable        |
+| --------- | ---------- | ------------------- |
+| UI text   | Geist Sans | `--font-geist-sans` |
+| Code/mono | Geist Mono | `--font-geist-mono` |
+
+Both fonts are loaded via `next/font/google` and applied as CSS variables on the `<html>` element. The base `body` uses Geist Sans with `antialiased`.
+
+## Border Radius
+
+Radius increases with surface depth — smaller for inner elements, larger for outer containers.
+
+| Context           | Class         |
+| ----------------- | ------------- |
+| Inline / small UI | `rounded-xl`  |
+| Cards / panels    | `rounded-2xl` |
+| Modal / overlay   | `rounded-3xl` |
+
+## Canvas
+
+### Node Color Palette
+
+8 defined color pairs. Each pair specifies a dark node fill and a vivid contrasting text color tuned for readability on the dark canvas. Defined in `types/canvas.ts` as `NODE_COLORS`.
+
+| Node fill | Text color | Character              |
+| --------- | ---------- | ---------------------- |
+| `#1F1F1F` | `#EDEDED`  | Neutral dark (default) |
+| `#10233D` | `#52A8FF`  | Blue                   |
+| `#2E1938` | `#BF7AF0`  | Purple                 |
+| `#331B00` | `#FF990A`  | Orange                 |
+| `#3C1618` | `#FF6166`  | Red                    |
+| `#3A1726` | `#F75F8F`  | Pink                   |
+| `#0F2E18` | `#62C073`  | Green                  |
+| `#062822` | `#0AC7B4`  | Teal                   |
+
+Default node color: `#1F1F1F` with `#EDEDED` text.
+
+### Edge Style
+
+Smooth-step path with an arrow marker. Default edge color: `#f8fafc`. Stroke width is thin — edges are visually secondary to nodes.
+
+### Node Shapes
+
+6 supported shapes, defined in `types/canvas.ts` as `NODE_SHAPES`. Complex shapes (diamond, hexagon, cylinder) are rendered as inline SVGs rather than CSS borders.
+
+- `rectangle` — default general-purpose node
+- `diamond` — decision / gateway
+- `circle` — event / endpoint
+- `pill` — service / process
+- `cylinder` — database / storage
+- `hexagon` — external system / boundary
+
+### Connection Handles
+
+Small white circular handles, hidden by default, revealed on node hover. Appear at all four sides of a node.
+
+### Canvas Background
+
+React Flow `<Background>` component. Canvas sits on the base background color.
+
+## Component Library
+
+shadcn/ui on top of Tailwind. No custom design system. Components live in `components/ui/`. Use the `shadcn` CLI to add new components rather than writing them from scratch.
+
+## Layout Patterns
+
+- Editor workspace: full-viewport layout — floating sidebar overlay on the left, center canvas, slide-over AI sidebar on the right.
+- Sidebars: floating overlay with dark semi-transparent background and subtle border.
+- Modals and dialogs: centered overlay, `rounded-3xl`, dark background with backdrop blur.
+- Navbar: top bar with dark background and bottom border.
+
+## Icons
+
+Lucide React. Stroke-based icons only — no filled variants. Icon sizes: `h-4 w-4` for inline, `h-5 w-5` for buttons, `h-8 w-8` for feature icons in empty states.
+
+---
+
+# Code Standards
+
+## General
+
+- Keep modules small and single-purpose.
+- Fix root causes — do not layer workarounds.
+- Do not mix unrelated concerns in one component or route.
+- Respect the system boundaries defined in `architecture-context.md`.
+
+## TypeScript
+
+- Strict mode is required throughout the project.
+- Avoid `any`; use explicit interfaces or narrowly scoped types.
+- Validate unknown external input at system boundaries before trusting it.
+- Use `interface` for object contracts.
+
+## Next.js
+
+- Default to React Server Components.
+- Add `"use client"` only when the component needs browser interactivity, hooks, or real-time state.
+- Keep route handlers focused on a single responsibility.
+- Long-running work belongs in background tasks, not in request handlers.
+
+## Styling
+
+- Use CSS custom property tokens defined in `globals.css` — no raw Tailwind color classes like `zinc-*` or hardcoded hex values.
+- Reference tokens through their Tailwind utility names: `bg-base`, `text-copy-primary`, `border-surface-border`, `text-brand`, `bg-accent-dim`, etc.
+- Maintain the border radius scale: `rounded-xl` for small elements, `rounded-2xl` for cards, `rounded-3xl` for modals.
+
+## API Routes
+
+- Validate and parse request input before any logic runs.
+- Enforce auth and project ownership checks before any mutation.
+- Return consistent, predictable response shapes.
+- Keep route handlers thin — push complexity into shared modules or background tasks.
+
+## Data and Storage
+
+- Project metadata and relationships belong in PostgreSQL via Prisma.
+- Canvas snapshots and generated specs belong in Vercel Blob; Prisma stores only the blob URL reference.
+- Do not store large generated content directly in the database.
+- Task run records are first-class relational data — treat ownership and run IDs as verified before any token issuance.
+
+## File Organization
+
+- `lib/` — shared infrastructure: Prisma client, auth helpers, utilities.
+- `trigger/` — all durable background tasks and AI workflows.
+- `components/` — UI composition only; no business logic.
+- `app/api/` — route handlers for auth, triggering, and persistence.
+- Name files after the responsibility they contain, not the technology.
+
+---
+
+# Development Workflow
+
+## Approach
+
+Build this project incrementally using a spec-driven workflow. Context files define what to build, how to build it, and what the current state of progress is. Always implement against these specs — do not infer or invent behavior from scratch.
+
+## Scoping Rules
+
+- Work on one feature unit or subsystem at a time.
+- Prefer small, verifiable increments over large speculative changes.
+- Do not combine unrelated system boundaries in a single implementation step.
+
+## When To Split Work
+
+Split an implementation step if it combines:
+
+- UI changes and background task changes
+- Real-time canvas state and database persistence
+- Multiple unrelated API routes
+- Behavior that is not clearly defined in the context files
+
+If a change cannot be verified end to end quickly, the scope is too broad — split it.
+
+## Handling Missing Requirements
+
+- Do not invent product behavior that is not defined in the context files.
+- If a requirement is ambiguous, resolve it in the relevant context file before implementing.
+- If a requirement is missing, add it as an open question in `progress-tracker.md` before continuing.
+
+## Protected Foundation Components
+
+Do not modify generated third-party foundation components unless explicitly instructed.
+
+This includes:
+
+- `components/ui/*` (shadcn/ui components)
+- third-party library internals
+
+These should remain default and reusable.
+
+Project-specific styling, layout changes, and feature logic must be implemented in app-level components instead of modifying foundation components.
+
+Only modify these files when a task explicitly requires it.
+
+## Keeping Docs In Sync
+
+Update the relevant context file whenever implementation changes:
+
+- System architecture or boundaries
+- Storage model decisions
+- Code conventions or standards
+- Feature scope
+
+Progress state must reflect the actual state of the implementation, not the intended state.
+
+## Before Moving To The Next Unit
+
+1. The current unit works end to end within its defined scope.
+2. No invariant defined in `architecture-context.md` was violated.
+3. `progress-tracker.md` reflects the completed work.
+
+---
+
+# Progress Tracker
+
+Update this file whenever the current phase, active feature, or implementation state changes.
+
+## Current Phase
+
+- Phase 1: Foundation — Data layer and infrastructure
+
+## Current Goal
+
+- Editor workspace shell complete. Ready for real-time collaborative canvas (Liveblocks + React Flow).
+
+## Completed
+
+- [x] Project scaffolding (Next.js 16, Tailwind 4, TypeScript)
+- [x] Boilerplate cleanup (globals.css cleared, public assets pruned)
+- [x] Design system setup (feature-spec `01-design-system`)
+  - shadcn/ui initialized (radix-nova preset, Geist fonts, Lucide icons)
+  - shadcn components added: Button, Card, Dialog, Input, Tabs, Textarea, ScrollArea
+  - `lucide-react` installed
+  - `lib/utils.ts` created with `cn()` helper (clsx + tailwind-merge)
+  - `globals.css` rewritten: dark-only theme, project color tokens from `ui-context.md`, shadcn CSS variable mappings
+  - Layout updated: `dark` class on `<html>`, metadata set to Ghost AI
+  - TypeScript strict check passes
+- [x] Editor chrome base setup (feature-spec `02-editor-chrome`)
+  - Created `components/editor/editor-navbar.tsx` with sidebar toggle and app header title.
+  - Created `components/editor/project-sidebar.tsx` with project listing tabs (My Projects, Shared), full-width action button, and premium empty state layouts.
+  - Created `components/editor/editor-workspace.tsx` to coordinate sidebar toggle state, backdrop overlay (for click-outside close), and canvas placeholder.
+  - Linked workspace into main `app/page.tsx` for immediate end-to-end rendering.
+- [x] User authentication and route protection using Clerk (feature-spec `03-auth`)
+  - Created `proxy.ts` at the root using `clerkMiddleware` to protect all routes by default except `/sign-in` and `/sign-up`.
+  - Added Clerk publishable key and secret key variables in `.env.local`.
+  - Configured `<ClerkProvider>` with dark theme dynamically styled using the project's CSS variables.
+  - Built clean, responsive double-panel Sign-In and Sign-Up pages using Clerk components.
+  - Created `/editor` route for the workspace and updated `/` to redirect there.
+  - Added Clerk's `<UserButton />` to the right section of the Editor Navbar.
+- [x] Project dialogs and Editor Home screen (feature-spec `04-project-dialogs`)
+  - Created `hooks/use-project-dialogs.ts` custom hook to coordinate dialog visibility, name inputs, auto-computed live slug previews, and faux loading animations.
+  - Updated `components/editor/project-sidebar.tsx` to render lists of projects under My Projects and Shared tabs, supporting active selection highlights and Pencil (Rename) / Trash2 (Delete) action triggers on owned rows.
+  - Revamped `components/editor/editor-workspace.tsx` to maintain local React state, show welcome Editor Home screen when no project is open, and toggle the three custom dialog views.
+- [x] Prisma schema and data layer (feature-spec `05-prisma`)
+  - Multi-file schema setup: `prisma/schema/schema.prisma` (generator + datasource) and `prisma/schema/project.prisma` (models).
+  - Added `Project` model with owner ID, name, optional description, status enum (`DRAFT`/`ARCHIVED`), `canvasJsonPath`, timestamps, and indexes on `ownerId` and `createdAt`.
+  - Added `ProjectCollaborator` model with cascade-delete relation to `Project`, collaborator email, unique constraint on `[projectId, email]`, and indexes on `email` and `[projectId, createdAt]`.
+  - Created `lib/prisma.ts` as a cached singleton branching on `DATABASE_URL` protocol: `prisma+postgres://` → Accelerate (`accelerateUrl`), otherwise → direct `@prisma/adapter-pg`.
+  - Updated `prisma.config.ts` to point at the `prisma/schema/` directory for multi-file support.
+  - Installed `@prisma/client`, `@prisma/adapter-pg`, and `pg`.
+  - Migration `init_project_models` applied successfully.
+  - `npm run build` passes.
+- [x] Project REST APIs (feature-spec `06-project-apis`)
+  - Created `lib/slug.ts` with a helper to dynamically compute slugs for the UI.
+  - Implemented `GET /api/projects` to list current user's owned and shared projects (incorporates user email search from Clerk).
+  - Implemented `POST /api/projects` to create new projects (defaulting name to `"Untitled Project"`).
+  - Implemented `PATCH /api/projects/[projectId]` to rename projects (enforces Clerk owner check).
+  - Implemented `DELETE /api/projects/[projectId]` to delete projects (enforces Clerk owner check).
+  - Validated API routes compile cleanly on Next.js 16 (resolving dynamic parameters as Promises).
+- [x] Wired Editor Home and Project CRUD APIs (feature-spec `07-wire-editor-home`)
+  - Extracted shared database query helper `getProjectsForUser()` in `lib/projects.ts`.
+  - Refactored `app/api/projects/route.ts` to utilize the data helper and support custom project IDs during creation.
+  - Converted `/editor` to a Server Component routing projects list.
+  - Created dynamic router `/editor/[projectId]` as a Server Component, checking workspace access and redirecting unauthorized users.
+  - Created a robust custom hook `useProjectActions` managing create, rename, delete, dialog states, and integration with Next.js navigation.
+  - Wired `<EditorWorkspace>` and `<ProjectSidebar>` to use the new hook and dynamic routing.
+  - Removed deprecated mockup dialog hook.
+- [x] Editor Workspace Shell (feature-spec `08-editor-workspace-shell`)
+  - Created `lib/project-access.ts` with `getCurrentIdentity()` and `checkProjectAccess()` helpers for Clerk identity resolution and project access verification.
+  - Created `components/editor/access-denied.tsx` with centered layout, lock icon, message, and link back to `/editor`.
+  - Updated `/editor/[projectId]` route with layered server-side access checks: unauthenticated → `/sign-in`, unauthorized/missing → `<AccessDenied />`.
+  - Enhanced `EditorNavbar` with project name breadcrumb, Share button, and AI sidebar toggle button (placeholder handlers).
+  - Updated `EditorWorkspace` layout: dark canvas placeholder filling available space, togglable right AI sidebar placeholder, project name passed from server component.
+- [x] Editor Workspace Shell — Visual Revamp
+  - Revamped `access-denied.tsx`: premium lock icon with error glow ring, radial ambient gradient backdrop, animated arrow hover on back link.
+  - Revamped `editor-navbar.tsx`: Ghost AI wordmark with branded icon, chevron breadcrumb separator, labeled "AI" and "Share" buttons (not icon-only), backdrop-blur, unique element IDs.
+  - Revamped `editor-workspace.tsx`: extracted `CanvasArea`, `EditorHome`, `AiSidebar`, and per-dialog sub-components for clarity; dot-grid canvas background with radial edge fade; cyan ambient glow on home screen; branded AI sidebar header icon.
+  - Revamped `project-sidebar.tsx`: active left-edge indicator bar, brand/10 tint on active row, extracted `EmptyState` helper, unique IDs on all project items, refined w-72 width and tighter spacing.- [x] Share Dialog and Collaborator Management (feature-spec `09-share-dialog`)
+  - Created backend REST API route handler `app/api/projects/[projectId]/collaborators/route.ts` supporting GET (fetch), POST (invite), and DELETE (remove) actions.
+  - Enriched collaborator details (avatar, name, email) dynamically using the Clerk Backend API with fallback behavior.
+  - Modified project route page `app/editor/[projectId]/page.tsx` to resolve user ownership and pass `isOwner`.
+  - Built premium `ShareProjectDialog` UI component styled with Radix Dialog and custom animations, matching the dark theme.
+  - Integrated share dialog action triggers in `EditorWorkspace` navbar and dialog drawer.
+- [x] Redesign Share Project Dialog (Visual Revamp)
+  - Redesigned dialog container with premium glassmorphism, radial glow backdrop, and gradient top border.
+  - Revamped header layout with icon capsule ring.
+  - Styled invite input and button with glow focus rings, inline mail icon, and micro-interactions.
+  - Created custom dynamic initials gradients for empty avatar fallbacks.
+  - Styled role badges and micro-animated collaborator trash buttons.
+  - Implemented premium dashed-border empty collaborator panel.
+  - Built interactive, state-morphing sharing link capsule with animated checkmarks.
+- [x] Liveblocks setup and authentication (feature-spec `10-liveblocks-setup`)
+  - Installed `@liveblocks/node@3.19.5` dependency at root workspace.
+  - Configured workspace root and subfolder `liveblocks.config.ts` with application-specific `Presence` and `UserMeta` types.
+  - Created cached singleton client at `lib/liveblocks.ts` for server-side Liveblocks operations.
+  - Added deterministic color mapper `getUserColor()` mapping user Clerk ID to consistent branding colors.
+  - Built the `POST /api/liveblocks-auth` route handler verifying Clerk authentication, project collaborator access, ensuring room existence, and issuing JWT tokens.
+  - Added environment variable placeholder to `.env.local`.
+- [x] Replace canvas placeholder with Liveblocks-backed React Flow canvas (feature-spec `11-base-canvas`)
+  - Created shared canvas types at `types/canvas.ts`.
+  - Created `components/editor/canvas-wrapper.tsx` for Liveblocks room provider and suspense/error fallbacks.
+  - Created `components/editor/collaborative-canvas.tsx` integrating `@xyflow/react` and `@liveblocks/react-flow`.
+  - Integrated the new canvas wrapper and components inside `components/editor/editor-workspace.tsx`.
+  - Verified build passes successfully.
+- [x] Bottom shape panel and dynamic node creation (feature-spec `12-shape-panel.md`)
+  - Created `components/editor/canvas-node.tsx` implementing custom `canvasNode` renderer with React Flow connection handles and dynamic `NODE_COLORS` color resolving.
+  - Created `components/editor/shape-panel.tsx` implementing a floating pill-shaped shapes toolbar with rectangle, diamond, circle, pill, cylinder, and hexagon shape triggers, custom JSON data payloads, and CSS tooltips.
+  - Restructured `components/editor/collaborative-canvas.tsx` inside `ReactFlowProvider` and added HTML5 dragover & drop handler with coordinate mapping, unique ID generation (`${shape}_${timestamp}_${counter}`), and Liveblocks-backed `onNodesChange` insertion.
+  - Registered `canvasNode` custom node renderer on React Flow `nodeTypes`.
+- [x] Canvas shape rendering and drag preview (visual fix)
+  - Rewrote `components/editor/canvas-node.tsx` to render distinct visual shapes (diamond, hexagon, cylinder, circle, pill) as inline SVGs instead of identical rounded rectangles.
+  - Enhanced `components/editor/shape-panel.tsx` with canvas-based drag preview images showing brand-colored shape outlines during drag.
+- [x] Canvas enhancements: floating sidebars, color picker, line types, more shapes
+  - Converted project sidebar and AI sidebar from edge-docked panels to floating overlays with `rounded-2xl`, `shadow-2xl`, and `backdrop-blur-lg`.
+  - Expanded `NODE_SHAPES` from 6 to 10 shapes: added triangle, parallelogram, star, cloud with SVG renderers and drag previews.
+  - Added `EdgeType` (bezier/straight/smoothstep), `EdgeStyle` (solid/dashed/dotted), and `CanvasEdgeData` to `types/canvas.ts`.
+  - Rewrote `shape-panel.tsx` as a unified bottom toolbar combining shapes, color swatches, line types, line styles, and arrow toggle.
+  - Wired `collaborative-canvas.tsx` to track edge preferences, selected node colors, and color change handler.
+- [x] Canvas UX: clear button, bidirectional handles, dynamic edge options
+  - Added clear canvas button (Trash2 icon) to unified toolbar; single click removes all edges and nodes.
+  - Made all 4 node handles bidirectional (stacked source + target at each position) so connections can start or end at any dot.
+  - Made `defaultEdgeOptions` dynamic — updates reactively with edge type, style, and arrow preferences.
+- [x] Canvas selections, deletion, edge editing, and shape replacement
+  - Added selected node and edge tracking in `CollaborativeCanvas`.
+  - Configured explicit `deleteKeyCode` shortcuts (`Backspace`, `Delete`) on `<ReactFlow>`.
+  - Added programmatic selection delete handler mapped to a context-aware red "Delete Selected" button in the bottom floating toolbar.
+  - Implemented dynamic edge updating: selecting an edge and clicking a line type, style, or arrow toggle in the bottom toolbar updates the selected edge in real-time.
+  - Implemented shape replacement: selecting a node and clicking a shape in the bottom toolbar directly updates the selected node's shape and dimensions to the new shape's defaults.
+  - Verification: Build successfully compiled and browser tests verified deletion, shape replacement, and edge type styling updates in real-time.
+- [x] Proper node shape rendering and custom drag preview (feature-spec `13-node-shape.md`)
+  - Converted rectangle, pill, and circle shapes to use CSS-styled `div`s with `rounded-full` / `rounded-xl` borders and backgrounds.
+  - Configured all SVG-based complex shapes (diamond, hexagon, cylinder, triangle, etc.) with `vectorEffect="non-scaling-stroke"` to prevent border warping when scaling.
+  - Implemented a custom ghost drag preview attached to the cursor by intercepting `onDragStart` and `onDragEnd` in the toolbar shapes and using a window-level `dragover` listener.
+  - Suppressed default browser drag behavior using a transparent 1x1 GIF drag image for a unified visual experience.
+- [x] Node resizing and inline double-click label editing (feature-spec `14-node-editing.md`)
+  - Added `<NodeResizer>` in `CanvasNodeRenderer` to show subtle brand-colored handles and outlines on selected nodes.
+  - Implemented custom double-click on node labels to toggle an inline textarea editor.
+  - Configured textarea with `nodrag nopan nowheel` classes to prevent canvas interference, auto-growing height, and placeholder support.
+  - Connected label editing to real-time `onNodesChange` flow using `setNodes`.
+  - Wrapped canvas `onNodesChange` callback to intercept `dimensions` updates and synchronize them to the node's `style.width` and `style.height` via Yjs/Liveblocks `replace` changes, supporting both new and persisted node states.
+- [x] Chevron shape and shape-specific safe boundaries for text overflow prevention
+  - Replaced the `triangle` node shape with `chevron` (arrow/process block) across the schema types, node renderer, bottom toolbar, and drag previews.
+  - Defined custom `SAFE_ZONES` padding/insets mapping absolute positioning bounds for all 10 shapes (e.g. circle, diamond, cylinder, chevron).
+  - Placed labels and inline textareas inside these safe zones to prevent labels from overflowing the visual borders.
+  - Added the `break-all` class to labels and textareas to force long words to wrap cleanly.
+- [x] Bugfixes, hydration, performance, and lint cleanup
+  - Fixed HTML hydration mismatch in `ProjectSidebar` where project items had buttons nested inside buttons. Converted outer elements to accessible `div`s with `role="button"` and keyboard navigation.
+  - Eliminated React Flow warnings by memoizing `nodeTypes` and `edgeTypes`.
+  - Fixed canvas freezes and click timeouts by using a `useRef` for the active `nodes` array inside the canvas change handlers, preventing callback recreation on every render.
+  - Removed unused `pillPath` helper from `canvas-node.tsx` and cleaned up Tailwind styling overrides to use standard `postfix!` notation.
+- [x] Canvas ergonomics: zoom controls, undo/redo, and keyboard shortcuts (feature-spec `17-canvas-ergonomics`)
+  - Created `components/editor/canvas-control-bar.tsx` — pill-shaped floating control bar positioned bottom-left with zoom in/out, fit view, undo, and redo buttons. Disabled states are visually dimmed.
+  - Created `hooks/use-keyboard-shortcuts.ts` — listens for `+`/`=` (zoom in), `-` (zoom out), `Cmd/Ctrl+Z` (undo), `Cmd/Ctrl+Shift+Z` (redo), `Cmd/Ctrl+Y` (redo). Ignores shortcuts while typing in inputs, textareas, or contentEditable elements.
+  - Wired Liveblocks `useUndo`, `useRedo`, `useCanUndo`, `useCanRedo` hooks into the collaborative canvas.
+  - Wired React Flow instance zoom methods (`zoomIn`, `zoomOut`, `fitView`) with smooth 300ms animations.
+  - Build passes without type errors.
+
+## In Progress
+
+- None.
+
+## Next Up
+
+- AI chat sidebar implementation.
+
+## Open Questions
+
+- None.
+
+## Architecture Decisions
+
+- Dark-only theme: shadcn's light `:root` and `.dark` blocks replaced with a single `:root` using project dark palette values. The `dark` class is set on `<html>` to satisfy any internal `dark:` variant usage in shadcn components.
+- shadcn components live in `components/ui/` and must not be modified per `ai-workflow-rules.md`.
+- Prisma uses multi-file schema layout (`prisma/schema/` directory) for model separation. Generator output lives at `app/generated/prisma`.
+- Prisma client singleton in `lib/prisma.ts` supports both Accelerate and direct PostgreSQL connections, selected at runtime based on `DATABASE_URL` protocol.
+
+## Session Notes
+
+- shadcn Nova preset was used for initialization (includes Lucide icons + Geist font support out of the box).
+- Project custom CSS variables (e.g., `--bg-base`, `--accent-primary`, `--accent-ai`) are mapped to Tailwind utilities via `@theme inline` (e.g., `bg-base`, `text-brand`, `text-ai`).
