@@ -8,7 +8,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Goal
  
-- User authentication and route protection using Clerk complete. Next: Project dialogs and Editor Home screen (feature-spec `04-project-dialogs`).
+- Wired Editor Home page and project CRUD APIs complete. Next: Editor Workspace Shell (feature-spec `08-editor-workspace-shell`).
 
 ## Completed
  
@@ -36,7 +36,17 @@ Update this file whenever the current phase, active feature, or implementation s
   - Split routes: moved local interactive mockup workspace page to `/editor` (`app/editor/page.tsx`), and rewrote `/` (`app/page.tsx`) to perform server-side redirect based on user authentication status
   - Added Clerk's built-in `<UserButton />` in the right section of the `EditorNavbar` (`components/editor/editor-navbar.tsx`)
   - Created Sign In (`app/sign-in/[[...sign-in]]/page.tsx`) and Sign Up (`app/sign-up/[[...sign-up]]/page.tsx`) pages using a sleek, professional two-panel desktop / one-panel mobile layout without gradients
-  - Verified full TypeScript compilation and ESLint build pass successfully
+  - [x] Project dialogs and Editor Home screen (feature-spec `04-project-dialogs`)
+- [x] Prisma schema and data layer (feature-spec `05-prisma`)
+- [x] Project REST APIs (feature-spec `06-project-apis`)
+- [x] Wired Editor Home and Project CRUD APIs (feature-spec `07-wire-editor-home`)
+  - Created `lib/project-data.ts` to query owned and shared projects server-side.
+  - Modified `POST /api/projects` endpoint to accept optional client-side `id` to align Room ID and Project ID.
+  - Implemented `hooks/use-project-actions.ts` hook for Dialog states and CRUD mutations (Create, Rename, Delete).
+  - Modified `components/editor/project-sidebar.tsx` to dynamically render project lists, handle active states, and expose hover action callbacks.
+  - Built interactive wrapper `app/editor/editor-home-client.tsx` holding Create, Rename, and Delete Dialogs.
+  - Converted `app/editor/page.tsx` to Server Component fetching real project lists.
+  - Created `app/editor/[roomId]/page.tsx` placeholder layout to avoid 404s.
 
 ## In Progress
 
@@ -44,10 +54,6 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Next Up
 
-- [ ] Project dialogs and Editor Home screen (feature-spec `04-project-dialogs`)
-- [ ] Prisma schema and data layer (feature-spec `05-prisma`)
-- [ ] Project REST APIs (feature-spec `06-project-apis`)
-- [ ] Wired Editor Home and Project CRUD APIs (feature-spec `07-wire-editor-home`)
 - [ ] Editor Workspace Shell (feature-spec `08-editor-workspace-shell`)
 - [ ] Share Dialog and Collaborator Management (feature-spec `09-share-dialog`)
 - [ ] Liveblocks setup and authentication (feature-spec `10-liveblocks-setup`)
