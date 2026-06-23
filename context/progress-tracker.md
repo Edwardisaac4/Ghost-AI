@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Phase 1: Foundation — Data layer and infrastructure
+- Phase 2: Collaboration and Interactive Canvas
 
 ## Current Goal
  
-- Wired Editor Home page and project CRUD APIs complete. Next: Editor Workspace Shell (feature-spec `08-editor-workspace-shell`).
+- Implement Liveblocks-backed collaborative visual canvas and bottom shape panel.
 
 ## Completed
  
@@ -36,7 +36,7 @@ Update this file whenever the current phase, active feature, or implementation s
   - Split routes: moved local interactive mockup workspace page to `/editor` (`app/editor/page.tsx`), and rewrote `/` (`app/page.tsx`) to perform server-side redirect based on user authentication status
   - Added Clerk's built-in `<UserButton />` in the right section of the `EditorNavbar` (`components/editor/editor-navbar.tsx`)
   - Created Sign In (`app/sign-in/[[...sign-in]]/page.tsx`) and Sign Up (`app/sign-up/[[...sign-up]]/page.tsx`) pages using a sleek, professional two-panel desktop / one-panel mobile layout without gradients
-  - [x] Project dialogs and Editor Home screen (feature-spec `04-project-dialogs`)
+- [x] Project dialogs and Editor Home screen (feature-spec `04-project-dialogs`)
 - [x] Prisma schema and data layer (feature-spec `05-prisma`)
 - [x] Project REST APIs (feature-spec `06-project-apis`)
 - [x] Wired Editor Home and Project CRUD APIs (feature-spec `07-wire-editor-home`)
@@ -47,18 +47,21 @@ Update this file whenever the current phase, active feature, or implementation s
   - Built interactive wrapper `app/editor/editor-home-client.tsx` holding Create, Rename, and Delete Dialogs.
   - Converted `app/editor/page.tsx` to Server Component fetching real project lists.
   - Created `app/editor/[roomId]/page.tsx` placeholder layout to avoid 404s.
+- [x] Editor Workspace Shell (feature-spec `08-editor-workspace-shell`)
+  - Built the responsive workspace shell with Server Component access checks.
+- [x] Share Dialog and Collaborator Management (feature-spec `09-share-dialog`)
+  - Added project collaborator invitations and share configurations.
+- [x] Liveblocks setup and authentication (feature-spec `10-liveblocks-setup`)
+  - Structured global TypeScript types, cached node client getter, and authentication routes.
 
 ## In Progress
 
-- None.
+- [ ] Collaborative React Flow canvas (feature-spec `11-base-canvas`)
+- [ ] Shape panel and node creation (feature-spec `12-shape-panel`)
 
 ## Next Up
 
-- [ ] Editor Workspace Shell (feature-spec `08-editor-workspace-shell`)
-- [ ] Share Dialog and Collaborator Management (feature-spec `09-share-dialog`)
-- [ ] Liveblocks setup and authentication (feature-spec `10-liveblocks-setup`)
-- [ ] Collaborative React Flow canvas (feature-spec `11-base-canvas`)
-- [ ] Shape panel and node creation (feature-spec `12-shape-panel`)
+- None.
 
 ## Open Questions
 
