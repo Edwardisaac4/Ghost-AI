@@ -1,33 +1,59 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getProjectsForUser } from "@/lib/project-data";
+import { getClerkIdentity, hasProjectAccess } from "@/lib/project-access";
+import { AccessDenied } from "@/components/editor/access-denied";
+import { EditorWorkspaceClient } from "./editor-workspace-client";
 
-export default async function WorkspacePlaceholder({
+import { WorkspaceCollaborativeWrapper } from "@/components/editor/workspace-collaborative-wrapper";
+
+export default async function WorkspacePage({
   params,
 }: {
   params: Promise<{ roomId: string }>;
 }) {
   const { roomId } = await params;
 
+  // 1. Get Clerk Identity
+  const { userId, primaryEmail } = await getClerkIdentity();
+  if (!userId) {
+    redirect("/sign-in");
+  }
+
+  // 2. Check Project Access
+  const { hasAccess, project } = await hasProjectAccess(roomId, userId, primaryEmail);
+  if (!hasAccess || !project) {
+    return <AccessDenied />;
+  }
+
+  // 3. Fetch Projects for sidebar listing
+  const { owned, shared } = await getProjectsForUser();
+
+  // 4. Serialize Dates for client-side boundary transmission
+  const serializedOwned = owned.map((p) => ({
+    ...p,
+    createdAt: p.createdAt.toISOString(),
+    updatedAt: p.updatedAt.toISOString(),
+  }));
+
+  const serializedShared = shared.map((p) => ({
+    ...p,
+    createdAt: p.createdAt.toISOString(),
+    updatedAt: p.updatedAt.toISOString(),
+  }));
+
+  const serializedProject = {
+    ...project,
+    createdAt: project.createdAt.toISOString(),
+    updatedAt: project.updatedAt.toISOString(),
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-bg-base text-text-primary px-6">
-      <div className="max-w-md w-full p-8 rounded-3xl bg-bg-surface border border-border-default text-center shadow-xl space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Workspace Shell
-        </h1>
-        <p className="text-sm text-text-muted">
-          This is a temporary placeholder for room ID: <span className="font-mono text-accent-primary">{roomId}</span>.
-        </p>
-        <p className="text-xs text-text-faint">
-          The collaborative workspace shell and Liveblocks Canvas will be integrated here in the next features.
-        </p>
-        <div className="pt-4 border-t border-border-default/50">
-          <Link
-            href="/editor"
-            className="inline-flex items-center justify-center w-full bg-accent-primary hover:bg-accent-primary/90 text-bg-base font-semibold py-2 px-4 rounded-xl transition-all cursor-pointer shadow-lg shadow-accent-primary/5"
-          >
-            Back to Editor Home
-          </Link>
-        </div>
-      </div>
-    </div>
+    <WorkspaceCollaborativeWrapper roomId={roomId}>
+      <EditorWorkspaceClient
+        project={serializedProject}
+        ownedProjects={serializedOwned}
+        sharedProjects={serializedShared}
+      />
+    </WorkspaceCollaborativeWrapper>
   );
 }

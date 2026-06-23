@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { ProjectStatus } from "@/app/generated/prisma/client";
+import { ProjectStatus, Prisma } from "@/app/generated/prisma/client";
 
 /**
  * GET /api/projects
@@ -59,6 +59,16 @@ export async function POST(request: NextRequest) {
       ? body.id.trim()
       : undefined;
 
+    if (id !== undefined) {
+      const idRegex = /^[a-zA-Z0-9_-]{3,50}$/;
+      if (!idRegex.test(id)) {
+        return NextResponse.json(
+          { error: "Invalid custom ID. It must be between 3 and 50 characters long and contain only alphanumeric characters, underscores, and hyphens." },
+          { status: 400 }
+        );
+      }
+    }
+
     const description = typeof body.description === "string" ? body.description : null;
     const canvasJsonPath = typeof body.canvasJsonPath === "string" ? body.canvasJsonPath : null;
 
@@ -81,6 +91,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(project, { status: 201 });
   } catch (error) {
     console.error("Error in POST /api/projects:", error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json(
+        { error: "A project with this ID already exists." },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

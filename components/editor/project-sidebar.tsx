@@ -44,8 +44,8 @@ export function ProjectSidebar({
       {/* Floating Sidebar Shell */}
       <aside
         className={cn(
-          "fixed top-14 left-0 z-30 w-80 h-[calc(100vh-3.5rem)] bg-bg-surface border-r border-border-default flex flex-col transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed top-18 bottom-4 left-0 z-30 w-80 h-[calc(100vh-5.5rem)] bg-bg-surface/85 backdrop-blur-md border border-border-default flex flex-col transition-transform duration-300 ease-in-out shadow-2xl rounded-2xl",
+          isOpen ? "translate-x-4" : "-translate-x-full"
         )}
       >
         {/* Header */}
@@ -245,7 +245,7 @@ export function ProjectSidebar({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-border-default bg-bg-surface mt-auto">
+        <div className="p-4 border-t border-border-default bg-transparent mt-auto">
           <Button
             onClick={() => onCreateProject?.()}
             className="w-full flex items-center justify-center gap-2 bg-accent-primary hover:bg-accent-primary/90 text-bg-base font-semibold py-2 rounded-xl transition-all cursor-pointer shadow-lg shadow-accent-primary/10"
