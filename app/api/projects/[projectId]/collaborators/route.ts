@@ -52,13 +52,18 @@ interface ClerkUser {
 }
 
     // 4. Enrich collaborators with Clerk profile data
-    let clerkUsers: ClerkUser[] = [];
+    const clerkUsers: ClerkUser[] = [];
     if (emails.length > 0) {
       try {
-        const userListResponse = await clerk.users.getUserList({
-          emailAddress: emails,
-        });
-        clerkUsers = userListResponse.data as unknown as ClerkUser[];
+        const batchSize = 100;
+        for (let i = 0; i < emails.length; i += batchSize) {
+          const batch = emails.slice(i, i + batchSize);
+          const userListResponse = await clerk.users.getUserList({
+            emailAddress: batch,
+            limit: batch.length,
+          });
+          clerkUsers.push(...(userListResponse.data as unknown as ClerkUser[]));
+        }
       } catch (clerkError) {
         console.error("Clerk API error when fetching users:", clerkError);
       }

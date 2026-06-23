@@ -69,11 +69,11 @@ export function ShareDialog({
   useEffect(() => {
     const timer = setTimeout(() => {
       if (typeof window !== "undefined") {
-        setShareUrl(window.location.href);
+        setShareUrl(`${window.location.origin}/editor/${projectId}`);
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [projectId]);
 
   // Fetch collaborators helper (memoized)
   const fetchCollaborators = useCallback(async () => {
@@ -259,7 +259,11 @@ export function ShareDialog({
                         />
                       ) : (
                         <div className="h-8 w-8 rounded-full bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center text-accent-primary text-xs font-bold font-mono">
-                          {owner.name?.charAt(0).toUpperCase() || <User className="h-4 w-4" />}
+                          {owner.name ? (
+                            owner.name.charAt(0).toUpperCase()
+                          ) : (
+                            <User className="h-4 w-4" />
+                          )}
                         </div>
                       )}
                       <div className="min-w-0">

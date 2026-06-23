@@ -53,19 +53,33 @@ Update this file whenever the current phase, active feature, or implementation s
   - Added project collaborator invitations and share configurations.
 - [x] Liveblocks setup and authentication (feature-spec `10-liveblocks-setup`)
   - Structured global TypeScript types, cached node client getter, and authentication routes.
+- [x] Collaborative React Flow canvas (feature-spec `11-base-canvas`)
+  - Integrated `useLiveblocksFlow` for collaborative canvas nodes and edges sync.
+- [x] Shape panel and node creation (feature-spec `12-shape-panel`)
+  - Built bottom floating shape panel and drag-and-drop node provisioning.
+- [x] Proper shape rendering and drag preview (feature-spec `13-node-shape`)
+  - Added scaleable SVG node shape rendering (diamond, hexagon, cylinder) and CSS styling for rectangle, pill, circle, with custom ghost drag previews.
+- [x] Node resizing and inline label editing (feature-spec `14-node-editing`)
+  - Integrated `NodeResizer` for resizing with minimum bounds and dark handles.
+  - Implemented center-aligned double-click editing with isolated events and zero layout shifts.
+- [x] Floating color toolbar (feature-spec `16-nodes-color-toolbar` / `15-node-color-toolbar`)
+  - Built absolute-positioned color swatch picker floating above selected nodes.
+  - Configured custom dark fills and vivid text matching color pairs dynamically.
+  - Verified compatibility with updated 4-side connection handles and label editor.
+- [x] Edge behavior, styling, and inline label editing (feature-spec `16-edge-behavior`)
+  - Integrated 4 connection handles (Top, Right, Bottom, Left) styled as subtle white dots with dark borders that fade in on node hover.
+  - Implemented custom edge renderer (`CustomEdge`) with dynamic edge and arrowhead coloring (dimmed at rest, brightened on hover, cyan brand accent when selected).
+  - Resolved connection drawing and rendering issues by registering the custom renderer under both `"default"` and `"canvasEdge"` edge types, wrapping `onConnect` to auto-assign properties, and preventing CSS stroke style overrides.
+  - Added support for multiple selectable edge routing styles: Smooth Step, Step (sharp), Straight, and Curved Bezier, toggled via a floating SVG style picker toolbar when selected.
+  - Built double-click inline label editing with auto-growing input, auto-saving on Enter/blur, and drag/pan containment.
 
 ## In Progress
 
-- [ ] Collaborative React Flow canvas (feature-spec `11-base-canvas`)
-- [ ] Shape panel and node creation (feature-spec `12-shape-panel`)
+- None.
 
 ## Next Up
 
-- None.
-
-## Open Questions
-
-- None.
+- [ ] Canvas ergonomics and keyboard controls (feature-spec `17-canvas-ergonomics`)
 
 ## Architecture Decisions
 

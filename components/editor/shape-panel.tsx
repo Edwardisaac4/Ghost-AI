@@ -6,7 +6,13 @@ import { CanvasShape } from "@/types/canvas";
  * ShapePanel renders a floating pill-shaped toolbar containing draggable shapes.
  * When dragged, the shape name and default dimensions are attached to the drag event payload.
  */
-export function ShapePanel() {
+export function ShapePanel({
+  onDragStart: propsOnDragStart,
+  onDragEnd: propsOnDragEnd,
+}: {
+  onDragStart?: (shape: CanvasShape, width: number, height: number) => void;
+  onDragEnd?: () => void;
+}) {
   const shapes: { type: CanvasShape; name: string; icon: React.ReactNode }[] = [
     {
       type: "rectangle",
@@ -84,14 +90,19 @@ export function ShapePanel() {
     event.dataTransfer.setData("application/reactflow", JSON.stringify(payload));
     event.dataTransfer.effectAllowed = "move";
 
-    // Set custom ghost drag preview
-    const previewEl = document.getElementById(`drag-preview-${shapeType}`);
-    if (previewEl) {
-      event.dataTransfer.setDragImage(
-        previewEl,
-        defaultSizes[shapeType].width / 2,
-        defaultSizes[shapeType].height / 2
-      );
+    // Set custom transparent ghost drag preview to suppress default browser preview
+    const img = new Image();
+    img.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+    event.dataTransfer.setDragImage(img, 0, 0);
+
+    if (propsOnDragStart) {
+      propsOnDragStart(shapeType, defaultSizes[shapeType].width, defaultSizes[shapeType].height);
+    }
+  };
+
+  const onDragEnd = () => {
+    if (propsOnDragEnd) {
+      propsOnDragEnd();
     }
   };
 
@@ -102,6 +113,7 @@ export function ShapePanel() {
           key={shape.type}
           draggable
           onDragStart={(e) => onDragStart(e, shape.type)}
+          onDragEnd={onDragEnd}
           className="relative group p-2.5 rounded-full text-text-secondary hover:text-accent-primary hover:bg-bg-subtle active:scale-95 transition-all cursor-grab active:cursor-grabbing border border-transparent hover:border-border-default"
           title={`${shape.name} (Drag onto canvas)`}
           aria-label={`Drag ${shape.name}`}

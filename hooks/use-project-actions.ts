@@ -18,25 +18,20 @@ export function useProjectActions() {
   // Create Project States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
-  const [createRoomId, setCreateRoomId] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [suffix, setSuffix] = useState("");
 
-  // Suffix generated once when Create dialog opens
-  useEffect(() => {
-    if (isCreateOpen) {
+  const handleOpenCreateChange = (open: boolean) => {
+    if (open) {
       setSuffix(Math.random().toString(36).substring(2, 7));
       setCreateName("");
-      setCreateRoomId("");
     }
-  }, [isCreateOpen]);
+    setIsCreateOpen(open);
+  };
 
-  // Update room ID preview dynamically
-  useEffect(() => {
-    if (!createName.trim()) {
-      setCreateRoomId("");
-      return;
-    }
+  // Derive createRoomId on the fly from createName and suffix
+  let createRoomId = "";
+  if (createName.trim()) {
     const slug = createName
       .toLowerCase()
       .trim()
@@ -44,8 +39,8 @@ export function useProjectActions() {
       .replace(/[^\w\-]+/g, "") // Remove all non-word chars except -
       .replace(/\-\-+/g, "-"); // Replace multiple - with single -
     
-    setCreateRoomId(slug ? `${slug}-${suffix}` : suffix);
-  }, [createName, suffix]);
+    createRoomId = slug ? `${slug}-${suffix}` : suffix;
+  }
 
   // Rename Project States
   const [isRenameOpen, setIsRenameOpen] = useState(false);
@@ -150,7 +145,7 @@ export function useProjectActions() {
 
   return {
     isCreateOpen,
-    setIsCreateOpen,
+    setIsCreateOpen: handleOpenCreateChange,
     createName,
     setCreateName,
     createRoomId,

@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useProjectActions, Project } from "@/hooks/use-project-actions";
-import { Cpu, Sparkles, Send, X, Bot, HelpCircle, Layers } from "lucide-react";
+import { Sparkles, Send, X, Bot, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ShareDialog } from "@/components/editor/share-dialog";
 import { CollaborativeCanvas } from "@/components/editor/collaborative-canvas";
@@ -125,7 +125,7 @@ export function EditorWorkspaceClient({
             <div className="space-y-4">
               {/* Message from AI */}
               <div className="flex gap-2.5 max-w-[85%]">
-                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-accent-ai/10 border border-accent-ai/20 flex items-center justify-center text-accent-ai-text">
+                <div className="shrink-0 w-7 h-7 rounded-full bg-accent-ai/10 border border-accent-ai/20 flex items-center justify-center text-accent-ai-text">
                   <Bot className="h-4 w-4" />
                 </div>
                 <div className="space-y-1">
@@ -153,7 +153,7 @@ export function EditorWorkspaceClient({
 
               {/* Mock AI Response */}
               <div className="flex gap-2.5 max-w-[85%]">
-                <div className="flex-shrink-0 w-7 h-7 rounded-full bg-accent-ai/10 border border-accent-ai/20 flex items-center justify-center text-accent-ai-text">
+                <div className="shrink-0 w-7 h-7 rounded-full bg-accent-ai/10 border border-accent-ai/20 flex items-center justify-center text-accent-ai-text">
                   <Bot className="h-4 w-4" />
                 </div>
                 <div className="space-y-1">

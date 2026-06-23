@@ -7,9 +7,24 @@ const globalForLiveblocks = globalThis as unknown as {
 // Caches the Liveblocks client to avoid multiple instances in development
 export function getLiveblocksClient(): Liveblocks {
   if (!globalForLiveblocks.liveblocks) {
-    globalForLiveblocks.liveblocks = new Liveblocks({
-      secret: process.env.LIVEBLOCKS_SECRET_KEY || "sk_dummy_key_for_build",
-    });
+    const secretKey = process.env.LIVEBLOCKS_SECRET_KEY;
+    if (!secretKey) {
+      const isDev = process.env.NODE_ENV === "development";
+      const isBuild = process.env.NEXT_PHASE === "phase-production-build";
+      if (isDev || isBuild) {
+        globalForLiveblocks.liveblocks = new Liveblocks({
+          secret: "sk_dummy_key_for_build",
+        });
+      } else {
+        throw new Error(
+          "LIVEBLOCKS_SECRET_KEY environment variable is not defined. Please set it in your environment variables."
+        );
+      }
+    } else {
+      globalForLiveblocks.liveblocks = new Liveblocks({
+        secret: secretKey,
+      });
+    }
   }
   return globalForLiveblocks.liveblocks;
 }
