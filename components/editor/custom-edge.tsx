@@ -187,7 +187,7 @@ export function CustomEdge({
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
             pointerEvents: "all",
           }}
-          className="nodrag nopan规则 z-30 flex flex-col items-center gap-1.5"
+          className="nodrag nopan z-30 flex flex-col items-center gap-1.5"
           onPointerDown={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
         >
